@@ -1,0 +1,1666 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Orvalho — controle de horta</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Schibsted+Grotesk:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
+<style>
+/* ============================================================
+   ORVALHO — sistema de controle de horta
+   Paleta: linho, tinta-floresta, folha, água-mineral, ocre-seco
+   Tipografia: Schibsted Grotesk (interface) + IBM Plex Mono (dados)
+   ============================================================ */
+
+:root{
+  --linho:#EAEDE5;
+  --papel:#F8F9F4;
+  --papel-2:#F1F3EC;
+  --tinta:#14241B;
+  --tinta-2:#5C6B60;
+  --tinta-3:#95A198;
+  --linha:#DDE2D6;
+  --linha-forte:#C8D0C0;
+  --folha:#4FA22E;
+  --folha-esc:#2A6B27;
+  --folha-clara:#7CC24A;
+  --agua:#5A90AC;
+  --agua-clara:#A8C8D8;
+  --seco:#BE8A3D;
+  --terra:#6E5844;
+  --terra-2:#8A7359;
+
+  --r-g:22px;
+  --r-m:16px;
+  --r-p:10px;
+  --sombra:0 1px 2px rgba(20,36,27,.04), 0 8px 24px -14px rgba(20,36,27,.18);
+  --sombra-alta:0 2px 6px rgba(20,36,27,.06), 0 22px 44px -20px rgba(20,36,27,.28);
+  --curva:cubic-bezier(.22,.61,.28,1);
+}
+
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+
+html,body{height:100%}
+body{
+  font-family:"Schibsted Grotesk",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+  background:
+    radial-gradient(1200px 700px at 50% -12%, #E4EADF 0%, transparent 60%),
+    #DFE4D9;
+  color:var(--tinta);
+  display:grid;
+  place-items:center;
+  overflow:hidden;
+}
+
+/* ---------- moldura do aparelho ---------- */
+.palco{width:100%;height:100%;display:grid;place-items:center;padding:24px}
+.aparelho{
+  position:relative;
+  width:390px;height:844px;
+  background:var(--papel);
+  border-radius:44px;
+  box-shadow:var(--sombra-alta), 0 0 0 1px rgba(20,36,27,.06);
+  overflow:hidden;
+  display:flex;flex-direction:column;
+  isolation:isolate;
+}
+@media (max-width:860px), (max-height:900px){
+  .palco{padding:0}
+  .aparelho{width:100%;height:100%;border-radius:0;box-shadow:none}
+}
+
+/* ---------- splash ---------- */
+.splash{
+  position:absolute;inset:0;z-index:60;
+  background:linear-gradient(168deg,#F8F9F4 0%,#EAEEE3 100%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;
+  transition:opacity .7s var(--curva), transform .7s var(--curva);
+}
+.splash.sai{opacity:0;transform:scale(1.06);pointer-events:none}
+.marca-svg{width:104px;height:104px;opacity:0;transform:scale(.7) rotate(-8deg);animation:brota 1.1s var(--curva) .15s forwards}
+@keyframes brota{to{opacity:1;transform:scale(1) rotate(0)}}
+.marca-nome{
+  font-size:30px;font-weight:600;letter-spacing:.34em;text-indent:.34em;
+  color:var(--tinta);opacity:0;animation:sobe .9s var(--curva) .55s forwards;
+}
+.marca-sub{
+  font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.22em;
+  text-transform:uppercase;color:var(--tinta-3);
+  opacity:0;animation:sobe .9s var(--curva) .75s forwards;margin-top:-14px;
+}
+@keyframes sobe{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:none}}
+.barra-carga{width:120px;height:2px;background:var(--linha-forte);border-radius:2px;overflow:hidden;margin-top:8px}
+.barra-carga i{display:block;height:100%;width:0;background:var(--folha);animation:carrega 1.7s var(--curva) .5s forwards}
+@keyframes carrega{to{width:100%}}
+
+/* ---------- topo ---------- */
+.topo{
+  flex:0 0 auto;padding:52px 22px 12px;
+  display:flex;align-items:center;justify-content:space-between;gap:12px;
+  background:linear-gradient(180deg,var(--papel) 72%,rgba(248,249,244,0));
+  position:relative;z-index:20;
+}
+.topo-tit{display:flex;flex-direction:column;gap:1px;min-width:0}
+.topo-eyebrow{
+  font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.2em;
+  text-transform:uppercase;color:var(--tinta-3);
+}
+.topo-h{font-size:25px;font-weight:600;letter-spacing:-.024em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.topo-acoes{display:flex;gap:8px;flex:0 0 auto}
+.btn-icone{
+  width:38px;height:38px;border-radius:50%;border:1px solid var(--linha);
+  background:var(--papel);display:grid;place-items:center;color:var(--tinta-2);
+  cursor:pointer;transition:.25s var(--curva);position:relative;
+}
+.btn-icone:hover{border-color:var(--linha-forte);color:var(--tinta)}
+.btn-icone:active{transform:scale(.92)}
+.btn-icone.tem-aviso::after{
+  content:"";position:absolute;top:8px;right:9px;width:6px;height:6px;border-radius:50%;
+  background:var(--seco);box-shadow:0 0 0 2px var(--papel);
+}
+
+/* ---------- área de telas ---------- */
+.telas{position:relative;flex:1 1 auto;overflow:hidden}
+.tela{
+  position:absolute;inset:0;overflow-y:auto;overflow-x:hidden;
+  padding:4px 18px 108px;
+  opacity:0;pointer-events:none;
+  transform:translateY(10px) scale(.994);
+  transition:opacity .34s var(--curva), transform .42s var(--curva);
+  scrollbar-width:none;
+}
+.tela::-webkit-scrollbar{display:none}
+.tela.ativa{opacity:1;pointer-events:auto;transform:none}
+.tela.empilhada{transform:translateX(100%);transition:transform .42s var(--curva),opacity .3s var(--curva)}
+.tela.empilhada.ativa{transform:translateX(0)}
+.tela.recuando{transform:translateX(-14%);opacity:0}
+
+/* aparição em cascata */
+.apar{opacity:0;transform:translateY(12px);animation:apar .5s var(--curva) forwards}
+.tela.montada .apar{animation:none;opacity:1;transform:none}
+@keyframes apar{to{opacity:1;transform:none}}
+
+/* ---------- rodapé / navegação ---------- */
+.rodape{
+  position:absolute;left:0;right:0;bottom:0;z-index:30;
+  padding:10px 14px 26px;
+  background:linear-gradient(180deg,rgba(248,249,244,0) 0%,var(--papel) 32%);
+}
+.nav{
+  display:grid;grid-template-columns:repeat(6,1fr);
+  background:rgba(255,255,255,.86);backdrop-filter:blur(14px);
+  border:1px solid var(--linha);border-radius:26px;padding:7px 6px;
+  box-shadow:0 10px 30px -18px rgba(20,36,27,.45);
+  position:relative;
+}
+.nav-marca{
+  position:absolute;top:7px;left:6px;height:calc(100% - 14px);
+  width:calc((100% - 12px)/6);
+  background:var(--papel-2);border-radius:19px;
+  transition:transform .42s var(--curva);z-index:0;
+}
+.nav-item{
+  position:relative;z-index:1;background:none;border:0;cursor:pointer;
+  display:flex;flex-direction:column;align-items:center;gap:3px;padding:7px 0 5px;
+  color:var(--tinta-3);transition:color .3s var(--curva);font:inherit;
+}
+.nav-item span{font-size:8.6px;font-weight:500;letter-spacing:-.005em;white-space:nowrap}
+.nav-item svg{transition:transform .4s var(--curva)}
+.nav-item.on{color:var(--folha-esc)}
+.nav-item.on svg{transform:translateY(-1px) scale(1.06)}
+
+/* ---------- blocos ---------- */
+.bloco{
+  background:var(--papel);border:1px solid var(--linha);border-radius:var(--r-g);
+  padding:18px;box-shadow:var(--sombra);
+}
+.bloco + .bloco{margin-top:14px}
+.bloco-plano{background:var(--papel-2);border-color:transparent;box-shadow:none}
+
+.rotulo{
+  font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.18em;
+  text-transform:uppercase;color:var(--tinta-3);
+}
+.secao-tit{
+  display:flex;align-items:baseline;justify-content:space-between;
+  margin:22px 2px 11px;
+}
+.secao-tit h2{font-size:14px;font-weight:600;letter-spacing:-.01em}
+.secao-tit .link{
+  font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.1em;
+  color:var(--folha-esc);text-transform:uppercase;background:none;border:0;cursor:pointer;
+}
+
+.dado{font-family:"IBM Plex Mono",monospace;font-variant-numeric:tabular-nums}
+.nota{font-size:12.5px;color:var(--tinta-2);line-height:1.5}
+
+/* ---------- cartão de estado geral ---------- */
+.geral{
+  display:flex;gap:16px;align-items:center;
+  background:linear-gradient(150deg,#1D3A28 0%,#264F32 58%,#2F6136 100%);
+  color:#EAF0E5;border:0;position:relative;overflow:hidden;
+}
+.geral::after{
+  content:"";position:absolute;right:-58px;top:-58px;width:190px;height:190px;
+  background:radial-gradient(circle,rgba(124,194,74,.30),transparent 68%);
+}
+.geral-txt{flex:1;position:relative;z-index:1}
+.geral-txt .rotulo{color:rgba(234,240,229,.55)}
+.geral-txt h3{font-size:20px;font-weight:600;letter-spacing:-.02em;margin:7px 0 5px}
+.geral-txt p{font-size:12.5px;color:rgba(234,240,229,.72);line-height:1.45}
+.anel{position:relative;flex:0 0 auto;width:88px;height:88px}
+.anel svg{transform:rotate(-90deg)}
+.anel-val{
+  position:absolute;inset:0;display:grid;place-items:center;text-align:center;
+  font-family:"IBM Plex Mono",monospace;font-size:19px;font-weight:500;letter-spacing:-.02em;
+}
+.anel-val small{display:block;font-size:8px;letter-spacing:.16em;opacity:.55;margin-top:1px}
+
+/* ---------- clima resumido ---------- */
+.clima-agora{display:flex;align-items:center;gap:14px}
+.clima-icone{
+  width:52px;height:52px;border-radius:16px;display:grid;place-items:center;
+  background:var(--papel-2);color:var(--agua);flex:0 0 auto;
+}
+.clima-temp{font-family:"IBM Plex Mono",monospace;font-size:30px;font-weight:500;letter-spacing:-.03em;line-height:1}
+.clima-cond{font-size:12.5px;color:var(--tinta-2);margin-top:3px}
+.clima-tags{display:flex;gap:6px;margin-top:12px;flex-wrap:wrap}
+.tag{
+  display:inline-flex;align-items:center;gap:5px;padding:5px 10px;border-radius:999px;
+  background:var(--papel-2);font-size:11px;color:var(--tinta-2);font-weight:500;
+}
+.tag.agua{background:#E7F0F4;color:#3C6E88}
+.tag.folha{background:#E8F3E1;color:var(--folha-esc)}
+.tag.seco{background:#F7EFDF;color:#8F681F}
+
+/* ---------- lista de canteiros ---------- */
+.canteiro{
+  display:flex;align-items:center;gap:13px;width:100%;text-align:left;
+  background:var(--papel);border:1px solid var(--linha);border-radius:var(--r-m);
+  padding:13px 14px;cursor:pointer;font:inherit;color:inherit;
+  transition:.3s var(--curva);
+}
+.canteiro:hover{border-color:var(--linha-forte);transform:translateY(-1px)}
+.canteiro:active{transform:scale(.985)}
+.canteiro + .canteiro{margin-top:9px}
+.canteiro-barra{
+  flex:0 0 auto;width:5px;height:42px;border-radius:3px;background:var(--linha);
+  position:relative;overflow:hidden;
+}
+.canteiro-barra i{position:absolute;left:0;right:0;bottom:0;border-radius:3px;transition:height .6s var(--curva)}
+.canteiro-info{flex:1;min-width:0}
+.canteiro-info h4{font-size:14px;font-weight:600;letter-spacing:-.01em}
+.canteiro-info p{font-size:11.5px;color:var(--tinta-3);margin-top:2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.canteiro-num{text-align:right;flex:0 0 auto}
+.canteiro-num b{font-family:"IBM Plex Mono",monospace;font-size:17px;font-weight:500;letter-spacing:-.02em}
+.canteiro-num span{display:block;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;margin-top:2px;font-family:"IBM Plex Mono",monospace}
+.st-ideal{color:var(--folha-esc)} .st-seco{color:var(--seco)} .st-alag{color:var(--agua)}
+.bg-ideal{background:var(--folha)} .bg-seco{background:var(--seco)} .bg-alag{background:var(--agua)}
+
+/* pulso de válvula aberta */
+.regando{position:relative}
+.regando::before{
+  content:"";position:absolute;inset:-1px;border-radius:var(--r-m);
+  border:1px solid var(--agua);opacity:0;animation:pulso 2.1s var(--curva) infinite;
+}
+@keyframes pulso{0%{opacity:.9;transform:scale(1)}70%{opacity:0;transform:scale(1.012)}100%{opacity:0}}
+
+/* ---------- perfil de solo (elemento-assinatura) ---------- */
+.perfil{display:flex;gap:18px;align-items:stretch}
+.perfil-svg{flex:0 0 auto}
+.perfil-leg{flex:1;display:flex;flex-direction:column;justify-content:center;gap:12px}
+.leg-linha{display:flex;justify-content:space-between;align-items:baseline;gap:10px;border-bottom:1px dashed var(--linha);padding-bottom:9px}
+.leg-linha:last-child{border-bottom:0;padding-bottom:0}
+.leg-linha span{font-size:11.5px;color:var(--tinta-2)}
+.leg-linha b{font-family:"IBM Plex Mono",monospace;font-size:13px;font-weight:500}
+
+@keyframes cai{0%{transform:translateY(0);opacity:0}18%{opacity:.9}100%{transform:translateY(30px);opacity:0}}
+.gota-anim{animation:cai 1.25s linear infinite}
+
+/* ---------- controles ---------- */
+.btn{
+  display:inline-flex;align-items:center;justify-content:center;gap:8px;
+  padding:14px 20px;border-radius:15px;border:1px solid transparent;
+  font:inherit;font-size:14px;font-weight:600;cursor:pointer;
+  transition:.28s var(--curva);width:100%;
+}
+.btn:active{transform:scale(.975)}
+.btn-agua{background:var(--agua);color:#fff}
+.btn-agua:hover{background:#4E829C}
+.btn-folha{background:var(--folha-esc);color:#F2F7ED}
+.btn-folha:hover{background:#235A21}
+.btn-linha{background:var(--papel);border-color:var(--linha-forte);color:var(--tinta)}
+.btn-linha:hover{background:var(--papel-2)}
+.btn[disabled]{opacity:.42;cursor:not-allowed}
+.btn-par{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+
+.interruptor{
+  width:46px;height:27px;border-radius:999px;background:var(--linha-forte);
+  border:0;cursor:pointer;position:relative;transition:background .32s var(--curva);flex:0 0 auto;
+}
+.interruptor i{
+  position:absolute;top:3px;left:3px;width:21px;height:21px;border-radius:50%;
+  background:#fff;box-shadow:0 1px 3px rgba(20,36,27,.28);
+  transition:transform .32s var(--curva);
+}
+.interruptor.on{background:var(--folha)}
+.interruptor.on i{transform:translateX(19px)}
+
+.linha-opcao{display:flex;align-items:center;gap:12px;padding:13px 0}
+.linha-opcao + .linha-opcao{border-top:1px solid var(--linha)}
+.linha-opcao .txt{flex:1;min-width:0}
+.linha-opcao h4{font-size:13.5px;font-weight:600}
+.linha-opcao p{font-size:11.5px;color:var(--tinta-3);margin-top:2px;line-height:1.4}
+
+.segmentado{
+  display:flex;background:var(--papel-2);border-radius:12px;padding:3px;gap:2px;
+}
+.segmentado button{
+  flex:1;border:0;background:none;font:inherit;font-size:11.5px;font-weight:600;
+  color:var(--tinta-3);padding:8px 4px;border-radius:9px;cursor:pointer;
+  transition:.28s var(--curva);
+}
+.segmentado button.on{background:var(--papel);color:var(--tinta);box-shadow:0 1px 3px rgba(20,36,27,.1)}
+
+/* ---------- previsão ---------- */
+.dias{display:flex;flex-direction:column}
+.dia{display:flex;align-items:center;gap:12px;padding:11px 0}
+.dia + .dia{border-top:1px solid var(--linha)}
+.dia-nome{width:38px;font-size:12.5px;font-weight:600}
+.dia-ic{width:26px;display:grid;place-items:center;color:var(--tinta-2)}
+.dia-chuva{width:52px;font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--agua)}
+.dia-faixa{flex:1;height:4px;border-radius:3px;background:var(--linha);position:relative;overflow:hidden}
+.dia-faixa i{position:absolute;top:0;bottom:0;border-radius:3px;background:linear-gradient(90deg,var(--folha-clara),var(--seco))}
+.dia-temp{width:62px;text-align:right;font-family:"IBM Plex Mono",monospace;font-size:11.5px}
+.dia-temp b{font-weight:500}
+.dia-temp span{color:var(--tinta-3)}
+
+/* ---------- atividade ---------- */
+.evento{display:flex;gap:11px;padding:10px 0;align-items:flex-start}
+.evento + .evento{border-top:1px solid var(--linha)}
+.evento-h{font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--tinta-3);width:42px;flex:0 0 auto;padding-top:1px}
+.evento-p{width:7px;height:7px;border-radius:50%;flex:0 0 auto;margin-top:5px;background:var(--folha)}
+.evento-p.agua{background:var(--agua)} .evento-p.seco{background:var(--seco)}
+.evento-t{flex:1;font-size:12.5px;color:var(--tinta-2);line-height:1.45}
+.evento-t b{color:var(--tinta);font-weight:600}
+
+/* ---------- gráficos ---------- */
+.barras{display:flex;align-items:flex-end;gap:7px;height:96px;margin-top:6px}
+.barra-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:7px;height:100%;justify-content:flex-end}
+.barra-col i{width:100%;border-radius:5px 5px 3px 3px;background:var(--agua-clara);transition:height .7s var(--curva)}
+.barra-col.hoje i{background:var(--agua)}
+.barra-col span{font-family:"IBM Plex Mono",monospace;font-size:9.5px;color:var(--tinta-3)}
+
+/* ---------- detalhe ---------- */
+.detalhe-topo{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin:6px 2px 16px}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin-top:10px}
+.chip{
+  font-family:"IBM Plex Mono",monospace;font-size:10px;letter-spacing:.06em;
+  padding:5px 9px;border-radius:7px;background:var(--papel-2);color:var(--tinta-2);
+}
+.grade-2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.metrica{background:var(--papel-2);border-radius:var(--r-m);padding:13px 14px}
+.metrica b{display:block;font-family:"IBM Plex Mono",monospace;font-size:19px;font-weight:500;letter-spacing:-.02em;margin-top:6px}
+.metrica em{font-style:normal;font-size:11px;color:var(--tinta-3);font-family:"IBM Plex Mono",monospace}
+
+/* ---------- aviso ---------- */
+.aviso{
+  display:flex;gap:11px;align-items:flex-start;padding:13px 14px;border-radius:var(--r-m);
+  background:#F8F1E2;border:1px solid #EADFC6;color:#7A5A18;
+}
+.aviso svg{flex:0 0 auto;margin-top:1px}
+.aviso p{font-size:12.5px;line-height:1.45}
+.aviso b{font-weight:600}
+
+/* ---------- torrada ---------- */
+.torrada{
+  position:absolute;left:18px;right:18px;bottom:104px;z-index:50;
+  background:var(--tinta);color:#EAF0E5;border-radius:15px;padding:13px 16px;
+  display:flex;align-items:center;gap:10px;font-size:12.5px;
+  box-shadow:0 16px 34px -18px rgba(20,36,27,.7);
+  opacity:0;transform:translateY(14px);pointer-events:none;
+  transition:.4s var(--curva);
+}
+.torrada.ver{opacity:1;transform:none}
+
+/* ---------- painel de simulação ---------- */
+.sim{
+  background:var(--tinta);color:#DCE6D8;border-radius:var(--r-g);padding:16px 18px;
+}
+.sim .rotulo{color:rgba(220,230,216,.5)}
+.sim-relogio{
+  font-family:"IBM Plex Mono",monospace;font-size:28px;font-weight:500;letter-spacing:-.02em;margin:6px 0 2px;
+}
+.sim-data{font-size:11.5px;color:rgba(220,230,216,.55)}
+.sim-seg{display:flex;background:rgba(255,255,255,.07);border-radius:11px;padding:3px;gap:2px;margin-top:14px}
+.sim-seg button{
+  flex:1;border:0;background:none;color:rgba(220,230,216,.55);font:inherit;
+  font-family:"IBM Plex Mono",monospace;font-size:11px;padding:8px 2px;border-radius:8px;cursor:pointer;transition:.26s var(--curva);
+}
+.sim-seg button.on{background:rgba(255,255,255,.14);color:#EAF0E5}
+
+.chuva-flag{
+  display:inline-flex;align-items:center;gap:7px;margin-top:12px;
+  font-size:11.5px;color:var(--agua-clara);
+}
+
+/* ---------- ao vivo: cena da horta ---------- */
+.cena-caixa{
+  position:relative;border-radius:var(--r-g);overflow:hidden;
+  background:linear-gradient(180deg,#E9EFE0 0%,#DDE7CF 62%,#CBD8BB 100%);
+  border:1px solid var(--linha);
+}
+.cena-caixa svg{display:block;width:100%;height:auto}
+.cena-selo{
+  position:absolute;top:10px;left:10px;display:inline-flex;align-items:center;gap:6px;
+  padding:5px 10px;border-radius:999px;background:rgba(255,255,255,.82);backdrop-filter:blur(8px);
+  font-family:"IBM Plex Mono",monospace;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;
+  color:var(--tinta-2);
+}
+.cena-selo i{width:6px;height:6px;border-radius:50%;background:var(--tinta-3);display:block}
+.cena-selo.ligado{color:#2C5F7A}
+.cena-selo.ligado i{background:var(--agua);animation:respira 1.5s ease-in-out infinite}
+@keyframes respira{0%,100%{opacity:1;transform:scale(1)}50%{opacity:.35;transform:scale(.8)}}
+
+.planta-g{transform-box:fill-box;transform-origin:bottom center}
+.regando .planta-g{animation:balanca 2.6s ease-in-out infinite}
+@keyframes balanca{0%,100%{transform:rotate(-1.6deg)}50%{transform:rotate(1.9deg)}}
+
+.av-progresso{height:3px;border-radius:3px;background:var(--linha);overflow:hidden;margin-top:12px}
+.av-progresso i{display:block;height:100%;background:var(--agua);width:0;transition:width .25s linear}
+
+.av-tempo{
+  display:flex;justify-content:space-between;align-items:baseline;margin-top:9px;
+  font-family:"IBM Plex Mono",monospace;font-size:11px;color:var(--tinta-3);
+}
+
+@media (prefers-reduced-motion:reduce){
+  *{animation-duration:.01ms !important;transition-duration:.01ms !important}
+}
+</style>
+</head>
+<body>
+<div class="palco">
+<div class="aparelho" id="app">
+
+  <!-- ===== SPLASH ===== -->
+  <div class="splash" id="splash">
+    <svg class="marca-svg" viewBox="0 0 100 100" aria-label="Orvalho">
+      <defs>
+        <linearGradient id="gf1" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0%" stop-color="#8CCB4E"/><stop offset="100%" stop-color="#3C8C24"/>
+        </linearGradient>
+        <linearGradient id="gf2" x1="0" y1="1" x2="1" y2="0">
+          <stop offset="0%" stop-color="#4FA22E"/><stop offset="100%" stop-color="#7CC24A"/>
+        </linearGradient>
+      </defs>
+      <path d="M50 93 C50 79 51 67 59 57" stroke="#2F7A28" stroke-width="6" stroke-linecap="round" fill="none"/>
+      <path d="M58 64 C58 36 74 15 95 8 C99 33 90 60 62 70 Z" fill="url(#gf1)"/>
+      <path d="M62 70 C68 48 78 33 92 22" stroke="#F8F9F4" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+      <path d="M52 70 C41 51 24 43 8 45 C9 66 26 84 51 77 Z" fill="url(#gf2)"/>
+      <path d="M51 77 C42 63 32 55 20 51" stroke="#F8F9F4" stroke-width="2.2" fill="none" stroke-linecap="round"/>
+    </svg>
+    <div style="display:flex;flex-direction:column;align-items:center;gap:14px">
+      <div class="marca-nome">ORVALHO</div>
+      <div class="marca-sub">controle de horta</div>
+    </div>
+    <div class="barra-carga"><i></i></div>
+  </div>
+
+  <!-- ===== TOPO ===== -->
+  <header class="topo" id="topo"></header>
+
+  <!-- ===== TELAS ===== -->
+  <main class="telas" id="telas">
+    <section class="tela" data-tela="hoje"></section>
+    <section class="tela" data-tela="canteiros"></section>
+    <section class="tela" data-tela="rega"></section>
+    <section class="tela" data-tela="clima"></section>
+    <section class="tela" data-tela="ajustes"></section>
+    <section class="tela" data-tela="aovivo"></section>
+    <section class="tela empilhada" data-tela="detalhe"></section>
+  </main>
+
+  <div class="torrada" id="torrada"></div>
+
+  <!-- ===== RODAPÉ ===== -->
+  <div class="rodape">
+    <nav class="nav" id="nav">
+      <div class="nav-marca" id="navMarca"></div>
+    </nav>
+  </div>
+
+</div>
+</div>
+
+<script>
+/* ================================================================
+   ÍCONES — traço 1.5, minimalistas, herdam currentColor
+   ================================================================ */
+const IC = {
+  sol:'<circle cx="12" cy="12" r="4"/><path d="M12 3v2M12 19v2M3 12h2M19 12h2M5.6 5.6l1.4 1.4M17 17l1.4 1.4M18.4 5.6L17 7M7 17l-1.4 1.4"/>',
+  canteiro:'<rect x="3" y="5" width="18" height="4" rx="2"/><rect x="3" y="12" width="18" height="4" rx="2"/><path d="M6 19h12"/>',
+  gota:'<path d="M12 3.5c3.6 4 5.5 6.6 5.5 9.2A5.5 5.5 0 0 1 12 18a5.5 5.5 0 0 1-5.5-5.3c0-2.6 1.9-5.2 5.5-9.2Z"/>',
+  nuvemsol:'<circle cx="8" cy="8" r="3"/><path d="M8 2v1.5M2 8h1.5M4.1 4.1l1 1M12.5 4.1l-1 1"/><path d="M9 19h8a3.2 3.2 0 0 0 .3-6.4A4.6 4.6 0 0 0 8.6 13 3 3 0 0 0 9 19Z"/>',
+  ajustes:'<path d="M4 7h9M17 7h3M4 17h3M11 17h9"/><circle cx="15" cy="7" r="2"/><circle cx="9" cy="17" r="2"/>',
+  sino:'<path d="M6 9a6 6 0 0 1 12 0c0 4 1.2 5.4 1.8 6H4.2C4.8 14.4 6 13 6 9Z"/><path d="M10 19a2 2 0 0 0 4 0"/>',
+  voltar:'<path d="M15 5l-7 7 7 7"/>',
+  frente:'<path d="M9 5l7 7-7 7"/>',
+  termo:'<path d="M14 14.8V5a2 2 0 0 0-4 0v9.8a4 4 0 1 0 4 0Z"/><path d="M12 9v6"/>',
+  vento:'<path d="M3 8h9a2.5 2.5 0 1 0-2.5-2.5M3 12h13a2.5 2.5 0 1 1-2.5 2.5M3 16h7"/>',
+  relogio:'<circle cx="12" cy="12" r="8.5"/><path d="M12 7.5V12l3 1.8"/>',
+  raio:'<path d="M13 3 5.5 13H11l-1 8 8-10.5h-5.5L13 3Z"/>',
+  chuva:'<path d="M8 15h9a3.4 3.4 0 0 0 .3-6.8A4.9 4.9 0 0 0 7.6 9 3.2 3.2 0 0 0 8 15Z"/><path d="M9 18l-1 2.5M13 18l-1 2.5M17 18l-1 2.5"/>',
+  nuvem:'<path d="M8 17h9a3.6 3.6 0 0 0 .3-7.2A5.1 5.1 0 0 0 7.5 10.6 3.3 3.3 0 0 0 8 17Z"/>',
+  folha:'<path d="M5 19C4 12 8 5 19 5c0 11-6 14-12.5 13.5"/><path d="M6.5 18.5C9 14 12 11.5 15.5 10"/>',
+  alerta:'<path d="M12 4.5 3.5 19h17L12 4.5Z"/><path d="M12 10v4M12 16.6v.1"/>',
+  check:'<path d="M5 12.5 9.5 17 19 7"/>',
+  calend:'<rect x="3.5" y="5.5" width="17" height="15" rx="3"/><path d="M3.5 10h17M8.5 3.5v4M15.5 3.5v4"/>',
+  historico:'<path d="M3.5 12a8.5 8.5 0 1 0 2.6-6.1"/><path d="M3.5 4.5V9h4.5"/><path d="M12 8v4.4l3 1.7"/>',
+  valvula:'<circle cx="12" cy="12" r="3.2"/><path d="M12 3.5v5.3M12 15.2v5.3M3.5 12h5.3M15.2 12h5.3"/>',
+  planta:'<path d="M12 21V11"/><path d="M12 12c0-4 2.6-6.6 7-7 0 4.6-2.8 7-7 7Z"/><path d="M12 15c-3.6 0-6-2-6-5.6 3.8.3 6 2.4 6 5.6Z"/>',
+  sensor:'<path d="M12 20v-6"/><circle cx="12" cy="11" r="2.6"/><path d="M7.4 15.6a6.5 6.5 0 0 1 0-9.2M16.6 6.4a6.5 6.5 0 0 1 0 9.2"/>',
+  mais:'<path d="M12 6v12M6 12h12"/>',
+  menos:'<path d="M6 12h12"/>',
+  pausa:'<rect x="7" y="5" width="3.5" height="14" rx="1.4"/><rect x="13.5" y="5" width="3.5" height="14" rx="1.4"/>',
+  aovivo:'<circle cx="12" cy="12" r="2.4"/><path d="M8.2 15.8a5.4 5.4 0 0 1 0-7.6M15.8 8.2a5.4 5.4 0 0 1 0 7.6"/><path d="M5.4 18.6a9.4 9.4 0 0 1 0-13.2M18.6 5.4a9.4 9.4 0 0 1 0 13.2"/>',
+  aspersor:'<path d="M12 21v-7"/><path d="M9 21h6"/><circle cx="12" cy="12" r="2"/><path d="M14 10.4 18.5 6M15.6 12h5M14.6 8.6 17 4.6"/>'
+};
+function ic(n,s=20,w=1.5){
+  return '<svg width="'+s+'" height="'+s+'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="'+w+'" stroke-linecap="round" stroke-linejoin="round">'+IC[n]+'</svg>';
+}
+
+/* ================================================================
+   ESTADO + MODELO DE SIMULAÇÃO
+   ================================================================ */
+const S = {
+  relogio: new Date(2026,7,3,6,40),
+  minPorTique: 1,
+  auto: true,
+  chuvaEmMin: 26*60,
+  chovendo: 0,
+  tela: 'hoje',
+  canteiroAberto: null,
+  litrosHoje: 0,
+  semana: [38,52,0,44,61,29,0],  // litros seg..dom (hoje = índice 0 desta lista é ajustado)
+  eventos: [],
+  clima: {
+    local:'Tubarão, SC',
+    temp:19, cond:'Céu limpo', umidadeAr:78, vento:8, uv:6,
+    dias:[
+      {d:'Hoje', min:16, max:27, cond:'sol',     prob:10, mm:0},
+      {d:'Ter',  min:18, max:29, cond:'nuvemsol',prob:25, mm:0.4},
+      {d:'Qua',  min:19, max:24, cond:'chuva',   prob:80, mm:11.2},
+      {d:'Qui',  min:17, max:22, cond:'chuva',   prob:65, mm:4.6},
+      {d:'Sex',  min:15, max:25, cond:'nuvemsol',prob:20, mm:0},
+      {d:'Sáb',  min:16, max:28, cond:'sol',     prob:5,  mm:0},
+      {d:'Dom',  min:18, max:30, cond:'sol',     prob:10, mm:0}
+    ]
+  },
+  canteiros:[
+    {id:'c1', nome:'Folhas', culturas:['Alface crespa','Rúcula','Espinafre'], sensor:'S-01', area:3.2,
+     umid:58, min:52, max:74, raiz:18, sol:'parcial', vazao:4.2, dur:6, ganho:2.6, dreno:0.85, valvula:false, ultima:'05:40', hist:[]},
+    {id:'c2', nome:'Temperos', culturas:['Manjericão','Alecrim','Hortelã'], sensor:'S-02', area:1.4,
+     umid:39, min:42, max:66, raiz:14, sol:'pleno', vazao:2.1, dur:5, ganho:3.4, dreno:1.15, valvula:false, ultima:'Ontem 18:10', hist:[]},
+    {id:'c3', nome:'Tomateiros', culturas:['Tomate cereja','Manjericão'], sensor:'S-03', area:4.8,
+     umid:64, min:55, max:78, raiz:34, sol:'pleno', vazao:5.6, dur:9, ganho:2.2, dreno:1.05, valvula:false, ultima:'05:52', hist:[]},
+    {id:'c4', nome:'Raízes', culturas:['Cenoura','Rabanete','Beterraba'], sensor:'S-04', area:2.6,
+     umid:71, min:48, max:70, raiz:26, sol:'parcial', vazao:3.4, dur:7, ganho:2.4, dreno:0.75, valvula:false, ultima:'Ontem 17:30', hist:[]},
+    {id:'c5', nome:'Estufa', culturas:['Pimenta dedo-de-moça','Morango'], sensor:'S-05', area:2.0,
+     umid:34, min:50, max:72, raiz:20, sol:'pleno', vazao:2.8, dur:6, ganho:3.0, dreno:1.25, valvula:false, ultima:'Ontem 17:55', hist:[]}
+  ]
+};
+
+// histórico inicial de 24 leituras por canteiro
+S.canteiros.forEach(c=>{
+  let v=c.umid;
+  for(let i=23;i>=0;i--){
+    v = v + (Math.random()*3.2-1.2);
+    v = Math.max(22, Math.min(88, v));
+    c.hist.unshift(Math.round(v));
+  }
+  c.hist[23]=Math.round(c.umid);
+});
+
+S.eventos = [
+  {h:'05:52', t:'<b>Tomateiros</b> regado por 9 min — 50 L', tipo:'agua'},
+  {h:'05:40', t:'<b>Folhas</b> regado por 6 min — 25 L', tipo:'agua'},
+  {h:'05:38', t:'Ciclo automático da manhã iniciado', tipo:''},
+  {h:'04:10', t:'<b>Estufa</b> abaixo do limite mínimo', tipo:'seco'}
+];
+
+/* --------- utilidades --------- */
+const hhmm = d => String(d.getHours()).padStart(2,'0')+':'+String(d.getMinutes()).padStart(2,'0');
+const estado = c => c.umid < c.min ? 'seco' : (c.umid > c.max ? 'alag' : 'ideal');
+const nomeEstado = {seco:'Seco', ideal:'Ideal', alag:'Encharcado'};
+const fatorSol = {pleno:1.18, parcial:1.0, 'meia-sombra':.82};
+const mediaUmid = () => Math.round(S.canteiros.reduce((a,c)=>a+c.umid,0)/S.canteiros.length);
+
+function tempAgora(){
+  const h = S.relogio.getHours() + S.relogio.getMinutes()/60;
+  const d = S.clima.dias[0];
+  const amp = (d.max-d.min)/2, med=(d.max+d.min)/2;
+  return med + amp*Math.sin((h-9.5)/24*2*Math.PI);
+}
+function chuvaEmBreve(horas=6){
+  return S.chuvaEmMin <= horas*60 && S.clima.dias.some(d=>d.prob>=55);
+}
+function registra(t, tipo=''){
+  S.eventos.unshift({h:hhmm(S.relogio), t, tipo});
+  if(S.eventos.length>28) S.eventos.pop();
+}
+function torrar(txt, icone='check'){
+  const el = document.getElementById('torrada');
+  el.innerHTML = '<span style="color:var(--folha-clara);display:flex">'+ic(icone,18)+'</span><span>'+txt+'</span>';
+  el.classList.add('ver');
+  clearTimeout(torrar._t);
+  torrar._t = setTimeout(()=>el.classList.remove('ver'), 2600);
+}
+
+/* --------- motor: um tique de simulação --------- */
+function tique(){
+  const dt = S.minPorTique;
+  S.relogio = new Date(S.relogio.getTime() + dt*60000);
+
+  const t = tempAgora();
+  const fTemp = 1 + (t-20)/26;
+
+  // chuva
+  S.chuvaEmMin -= dt;
+  if(S.chuvaEmMin <= 0 && S.chovendo <= 0){
+    S.chovendo = 55;
+    S.clima.cond = 'Chuva fraca';
+    registra('Chuva detectada — ciclos automáticos suspensos','agua');
+    torrar('Chuva começou. Rega automática pausada.','chuva');
+    S.chuvaEmMin = 34*60;
+  }
+  if(S.chovendo > 0){
+    S.chovendo -= dt;
+    if(S.chovendo <= 0){ S.clima.cond='Nublado'; registra('Chuva encerrada — 6,4 mm acumulados','agua'); }
+  }
+
+  S.canteiros.forEach(c=>{
+    // drenagem / evapotranspiração
+    c.umid -= (c.dreno * fTemp * fatorSol[c.sol]) * (dt/60);
+    // chuva infiltra (estufa recebe menos)
+    if(S.chovendo>0) c.umid += (c.id==='c5'?0.25:1.5)*(dt/60)*4;
+    // rega ativa
+    if(c.valvula){
+      c.umid += c.ganho * dt;
+      S.litrosHoje += c.vazao * dt;
+      c.restante -= dt;
+      if(c.umid >= c.alvo || c.restante <= 0){
+        fecharValvula(c, true);
+      }
+    }
+    // automação
+    if(c.descanso>0) c.descanso -= dt;
+    if(S.auto && !c.valvula && !(c.descanso>0) && S.chovendo<=0 && c.umid < c.min && !chuvaEmBreve(6) && janelaRega()){
+      abrirValvula(c, true);
+    }
+    c.umid = Math.max(8, Math.min(96, c.umid));
+    c.hist[23] = Math.round(c.umid);
+  });
+
+  // vira a hora cheia -> desloca histórico
+  if(S.relogio.getMinutes() < dt){
+    S.canteiros.forEach(c=>{ c.hist.shift(); c.hist.push(Math.round(c.umid)); });
+  }
+  S.clima.temp = Math.round(t);
+  desenha();
+}
+function janelaRega(){
+  const h = S.relogio.getHours();
+  return (h>=5 && h<9) || (h>=17 && h<20);
+}
+function abrirValvula(c, auto=false){
+  c.valvula = true;
+  c.alvo = Math.min(c.max-2, (c.min+c.max)/2 + 5);
+  c.restante = c.dur;
+  c.litrosCiclo = 0;
+  registra('<b>'+c.nome+'</b> — válvula aberta'+(auto?' (automático)':' (manual)'),'agua');
+  if(!auto) torrar('Regando '+c.nome+'. Meta: '+Math.round(c.alvo)+'% de umidade.','gota');
+}
+function fecharValvula(c, concluido=false){
+  const min = c.dur - Math.max(0,c.restante||0);
+  c.valvula = false;
+  c.descanso = 150;            // 2h30 de intervalo mínimo entre ciclos
+  c.ultima = hhmm(S.relogio);
+  registra('<b>'+c.nome+'</b> — '+Math.max(1,Math.round(min))+' min, '+Math.round(c.vazao*Math.max(1,min))+' L','agua');
+  if(!concluido) torrar('Rega interrompida em '+c.nome+'.','pausa');
+}
+
+/* ================================================================
+   NAVEGAÇÃO
+   ================================================================ */
+const ABAS = [
+  {id:'hoje',      rot:'Hoje',      ic:'sol'},
+  {id:'canteiros', rot:'Canteiros', ic:'canteiro'},
+  {id:'rega',      rot:'Rega',      ic:'gota'},
+  {id:'clima',     rot:'Clima',     ic:'nuvemsol'},
+  {id:'ajustes',   rot:'Ajustes',   ic:'ajustes'},
+  {id:'aovivo',    rot:'Ao vivo',   ic:'aovivo'}
+];
+const TITULOS = {
+  hoje:      ()=>({eyebrow:S.clima.local, h:saudacao()}),
+  canteiros: ()=>({eyebrow:S.canteiros.length+' zonas monitoradas', h:'Canteiros'}),
+  rega:      ()=>({eyebrow:S.auto?'Automático ativo':'Somente manual', h:'Rega'}),
+  clima:     ()=>({eyebrow:S.clima.local, h:'Clima'}),
+  ajustes:   ()=>({eyebrow:'Orvalho 2.4 — hub local', h:'Ajustes'}),
+  aovivo:    ()=>({eyebrow: FB.ok
+                    ? (FB.dispositivos>1 ? FB.dispositivos+' dispositivos sincronizados' : 'Aguardando outro dispositivo')
+                    : 'Modo local — sem sincronia', h:'Simulação animada'}),
+  detalhe:   ()=>({eyebrow:'Canteiro · '+(S.canteiroAberto?S.canteiroAberto.sensor:''), h:S.canteiroAberto?S.canteiroAberto.nome:''})
+};
+function saudacao(){
+  const h = S.relogio.getHours();
+  return h<12 ? 'Bom dia, Arthur' : h<18 ? 'Boa tarde, Arthur' : 'Boa noite, Arthur';
+}
+
+function montaNav(){
+  const nav = document.getElementById('nav');
+  ABAS.forEach((a,i)=>{
+    const b = document.createElement('button');
+    b.className = 'nav-item'+(i===0?' on':'');
+    b.dataset.aba = a.id;
+    b.innerHTML = ic(a.ic,21)+'<span>'+a.rot+'</span>';
+    b.onclick = ()=>vaiPara(a.id);
+    nav.appendChild(b);
+  });
+}
+function vaiPara(id){
+  if(id===S.tela) return;
+  const anterior = S.tela;
+  delete ultimoHTML[id];
+  const novo = document.querySelector('.tela[data-tela="'+id+'"]');
+  if(novo) novo.classList.remove('montada');
+  S.tela = id;
+  document.querySelectorAll('.tela').forEach(t=>{
+    t.classList.toggle('ativa', t.dataset.tela===id);
+    t.classList.remove('recuando');
+  });
+  if(id!=='detalhe'){
+    const idx = ABAS.findIndex(a=>a.id===id);
+    document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('on', b.dataset.aba===id));
+    document.getElementById('navMarca').style.transform = 'translateX(calc('+idx+' * 100%))';
+    if(anterior==='detalhe') S.canteiroAberto = null;
+  }
+  desenha();
+  const el = document.querySelector('.tela[data-tela="'+id+'"]');
+  if(el) el.scrollTop = 0;
+}
+function abreCanteiro(c){
+  S.canteiroAberto = c;
+  S.origem = S.tela;
+  vaiPara('detalhe');
+}
+
+/* ================================================================
+   COMPONENTES DE DESENHO
+   ================================================================ */
+function anelSVG(pct, cor, fundo='rgba(255,255,255,.18)'){
+  const r=38, c=2*Math.PI*r;
+  return '<svg width="88" height="88" viewBox="0 0 88 88">'+
+    '<circle cx="44" cy="44" r="'+r+'" fill="none" stroke="'+fundo+'" stroke-width="7"/>'+
+    '<circle cx="44" cy="44" r="'+r+'" fill="none" stroke="'+cor+'" stroke-width="7" stroke-linecap="round" '+
+    'stroke-dasharray="'+c+'" stroke-dashoffset="'+(c-c*pct/100)+'" style="transition:stroke-dashoffset .9s cubic-bezier(.22,.61,.28,1)"/></svg>';
+}
+
+/* --- ELEMENTO-ASSINATURA: perfil vertical do solo --- */
+function perfilSolo(c, alt=178){
+  const x0=16, larg=76, topo=26, base=topo+alt-46;
+  const prof = base-topo;
+  const molhado = topo + prof*(c.umid/100);
+  const raizY = topo + prof*Math.min(.86, c.raiz/45);
+  const st = estado(c);
+  const corAgua = st==='seco' ? '#C9A25C' : st==='alag' ? '#4E86A6' : '#5A90AC';
+
+  let camadas='';
+  for(let i=0;i<7;i++){
+    const y = topo + (prof/7)*i;
+    camadas += '<line x1="'+(x0+6)+'" y1="'+(y+7)+'" x2="'+(x0+larg-8)+'" y2="'+(y+7)+'" stroke="rgba(110,88,68,.16)" stroke-width="1" stroke-dasharray="'+(3+i)+' '+(7+i*2)+'"/>';
+  }
+  let gotas='';
+  if(c.valvula){
+    for(let i=0;i<3;i++){
+      gotas += '<circle class="gota-anim" cx="'+(x0+20+i*20)+'" cy="'+(topo-14)+'" r="2.6" fill="'+corAgua+'" style="animation-delay:'+(i*.35)+'s"/>';
+    }
+  }
+  return '<svg class="perfil-svg" width="'+(larg+34)+'" height="'+alt+'" viewBox="0 0 '+(larg+34)+' '+alt+'">'+
+    '<defs>'+
+      '<linearGradient id="gsolo" x1="0" y1="0" x2="0" y2="1">'+
+        '<stop offset="0%" stop-color="#8A7359"/><stop offset="100%" stop-color="#5A4736"/></linearGradient>'+
+      '<linearGradient id="gagua'+c.id+'" x1="0" y1="0" x2="0" y2="1">'+
+        '<stop offset="0%" stop-color="'+corAgua+'" stop-opacity=".55"/>'+
+        '<stop offset="100%" stop-color="'+corAgua+'" stop-opacity=".12"/></linearGradient>'+
+      '<clipPath id="cclip'+c.id+'"><rect x="'+x0+'" y="'+topo+'" width="'+larg+'" height="'+prof+'" rx="6"/></clipPath>'+
+    '</defs>'+
+    // broto na superfície
+    '<path d="M'+(x0+larg/2)+' '+(topo)+' L'+(x0+larg/2)+' '+(topo-16)+'" stroke="#2F7A28" stroke-width="2" stroke-linecap="round"/>'+
+    '<path d="M'+(x0+larg/2)+' '+(topo-11)+' c6 -1 9 -5 9 -10 -6 0 -9 4 -9 10Z" fill="#4FA22E"/>'+
+    '<path d="M'+(x0+larg/2)+' '+(topo-6)+' c-6 -1 -8 -4 -8 -8 5 0 8 3 8 8Z" fill="#7CC24A"/>'+
+    gotas+
+    // coluna de solo
+    '<rect x="'+x0+'" y="'+topo+'" width="'+larg+'" height="'+prof+'" rx="6" fill="url(#gsolo)"/>'+
+    '<g clip-path="url(#cclip'+c.id+')">'+camadas+
+      '<rect x="'+x0+'" y="'+topo+'" width="'+larg+'" height="'+(molhado-topo)+'" fill="url(#gagua'+c.id+')" style="transition:height .9s cubic-bezier(.22,.61,.28,1)"/>'+
+      '<line x1="'+x0+'" y1="'+molhado+'" x2="'+(x0+larg)+'" y2="'+molhado+'" stroke="'+corAgua+'" stroke-width="1.6" style="transition:all .9s cubic-bezier(.22,.61,.28,1)"/>'+
+      // raízes
+      '<path d="M'+(x0+larg/2)+' '+topo+' L'+(x0+larg/2)+' '+raizY+' M'+(x0+larg/2)+' '+(topo+prof*.18)+' l-13 '+(prof*.2)+' M'+(x0+larg/2)+' '+(topo+prof*.3)+' l14 '+(prof*.18)+' M'+(x0+larg/2)+' '+(topo+prof*.5)+' l-10 '+(prof*.16)+'" stroke="rgba(248,249,244,.42)" stroke-width="1.2" fill="none" stroke-linecap="round"/>'+
+    '</g>'+
+    '<rect x="'+x0+'" y="'+topo+'" width="'+larg+'" height="'+prof+'" rx="6" fill="none" stroke="rgba(20,36,27,.14)"/>'+
+    // marcador de profundidade da raiz
+    '<line x1="'+(x0+larg)+'" y1="'+raizY+'" x2="'+(x0+larg+9)+'" y2="'+raizY+'" stroke="var(--tinta-3)" stroke-width="1"/>'+
+    '<text x="'+(x0+larg+12)+'" y="'+(raizY+3)+'" font-family="IBM Plex Mono, monospace" font-size="8" fill="#95A198">'+c.raiz+'cm</text>'+
+    '<text x="'+x0+'" y="'+(base+18)+'" font-family="IBM Plex Mono, monospace" font-size="8" fill="#95A198">45 cm</text>'+
+  '</svg>';
+}
+
+function sparkline(c, larg=302, alt=76){
+  const h = c.hist, n = h.length;
+  const px = i => (i/(n-1))*larg;
+  const py = v => alt - ((v-15)/80)*alt;
+  let d='', a='';
+  h.forEach((v,i)=>{ d += (i?' L':'M')+px(i).toFixed(1)+' '+py(v).toFixed(1); });
+  a = d + ' L'+larg+' '+alt+' L0 '+alt+' Z';
+  const yMin = py(c.max), yMax = py(c.min);
+  return '<svg width="100%" height="'+alt+'" viewBox="0 0 '+larg+' '+alt+'" preserveAspectRatio="none" style="display:block;overflow:visible">'+
+    '<defs><linearGradient id="gsp'+c.id+'" x1="0" y1="0" x2="0" y2="1">'+
+      '<stop offset="0%" stop-color="#4FA22E" stop-opacity=".22"/><stop offset="100%" stop-color="#4FA22E" stop-opacity="0"/></linearGradient></defs>'+
+    '<rect x="0" y="'+yMin+'" width="'+larg+'" height="'+(yMax-yMin)+'" fill="rgba(79,162,46,.07)"/>'+
+    '<line x1="0" y1="'+yMax+'" x2="'+larg+'" y2="'+yMax+'" stroke="var(--seco)" stroke-width="1" stroke-dasharray="3 4" opacity=".55"/>'+
+    '<path d="'+a+'" fill="url(#gsp'+c.id+')"/>'+
+    '<path d="'+d+'" fill="none" stroke="var(--folha-esc)" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>'+
+    '<circle cx="'+larg+'" cy="'+py(h[n-1])+'" r="3.2" fill="var(--folha-esc)"/>'+
+  '</svg>';
+}
+
+function linhaCanteiro(c, atraso=0){
+  const st = estado(c);
+  return '<button class="canteiro apar'+(c.valvula?' regando':'')+'" style="animation-delay:'+atraso+'ms" data-abre="'+c.id+'">'+
+    '<div class="canteiro-barra"><i class="bg-'+st+'" style="height:'+c.umid+'%"></i></div>'+
+    '<div class="canteiro-info"><h4>'+c.nome+'</h4><p>'+(c.valvula?'Regando agora · '+Math.max(1,Math.round(c.restante))+' min restantes':c.culturas.join(' · '))+'</p></div>'+
+    '<div class="canteiro-num"><b class="dado st-'+st+'">'+Math.round(c.umid)+'%</b><span class="st-'+st+'">'+nomeEstado[st]+'</span></div>'+
+  '</button>';
+}
+
+/* ================================================================
+   TELAS
+   ================================================================ */
+function telaHoje(){
+  const media = mediaUmid();
+  const secos = S.canteiros.filter(c=>estado(c)==='seco');
+  const regando = S.canteiros.filter(c=>c.valvula);
+  const d0 = S.clima.dias[0];
+  const proxChuva = Math.round(S.chuvaEmMin/60);
+
+  let resumo;
+  if(regando.length) resumo = 'Rega em andamento em '+regando.length+' canteiro'+(regando.length>1?'s':'')+'. Nada a fazer agora.';
+  else if(secos.length) resumo = secos.length+' canteiro'+(secos.length>1?'s abaixo':' abaixo')+' do limite. '+(chuvaEmBreve()?'Chuva chega antes do próximo ciclo.':'Próximo ciclo às '+proximoCiclo()+'.');
+  else resumo = 'Todos os canteiros dentro da faixa ideal. Próximo ciclo às '+proximoCiclo()+'.';
+
+  return `
+  <div class="bloco geral apar">
+    <div class="geral-txt">
+      <div class="rotulo">Estado da horta</div>
+      <h3>${regando.length?'Regando':secos.length?'Precisa de água':'Tudo em ordem'}</h3>
+      <p>${resumo}</p>
+    </div>
+    <div class="anel">
+      ${anelSVG(media, '#7CC24A')}
+      <div class="anel-val">${media}%<small>MÉDIA</small></div>
+    </div>
+  </div>
+
+  ${secos.length && !regando.length ? `
+  <div class="bloco apar" style="animation-delay:60ms;padding:0;border:0;box-shadow:none">
+    <div class="aviso">
+      ${ic('alerta',18)}
+      <p><b>${secos.map(c=>c.nome).join(' e ')}</b> ${secos.length>1?'estão':'está'} abaixo do limite mínimo.
+      ${chuvaEmBreve()? 'A rega foi adiada porque há chuva prevista em '+proxChuva+' h.' : 'Você pode antecipar a rega manualmente.'}</p>
+    </div>
+  </div>`:''}
+
+  <div class="secao-tit apar" style="animation-delay:100ms">
+    <h2>Agora lá fora</h2>
+    <button class="link" data-vai="clima">7 dias</button>
+  </div>
+  <div class="bloco apar" style="animation-delay:120ms">
+    <div class="clima-agora">
+      <div class="clima-icone">${ic(S.chovendo>0?'chuva':d0.cond,28)}</div>
+      <div style="flex:1">
+        <div class="clima-temp">${S.clima.temp}°</div>
+        <div class="clima-cond">${S.clima.cond} · máx ${d0.max}° / mín ${d0.min}°</div>
+      </div>
+    </div>
+    <div class="clima-tags">
+      <span class="tag agua">${ic('gota',13)} ${S.clima.umidadeAr}% ar</span>
+      <span class="tag">${ic('vento',13)} ${S.clima.vento} km/h</span>
+      <span class="tag ${chuvaEmBreve()?'agua':''}">${ic('chuva',13)} chuva em ${proxChuva} h</span>
+    </div>
+  </div>
+
+  <div class="secao-tit apar" style="animation-delay:160ms">
+    <h2>Canteiros</h2>
+    <button class="link" data-vai="canteiros">Ver todos</button>
+  </div>
+  ${S.canteiros.slice(0,3).map((c,i)=>linhaCanteiro(c,180+i*40)).join('')}
+
+  <div class="secao-tit apar" style="animation-delay:320ms"><h2>Atividade</h2></div>
+  <div class="bloco apar" style="animation-delay:340ms">
+    ${S.eventos.slice(0,4).map(e=>`
+      <div class="evento">
+        <div class="evento-h dado">${e.h}</div>
+        <div class="evento-p ${e.tipo}"></div>
+        <div class="evento-t">${e.t}</div>
+      </div>`).join('')}
+  </div>`;
+}
+
+function proximoCiclo(){
+  const h = S.relogio.getHours();
+  return (h<5) ? '05:30' : (h<9 ? '17:30' : (h<17 ? '17:30' : '05:30 de amanhã'));
+}
+
+function telaCanteiros(){
+  const secos = S.canteiros.filter(c=>estado(c)==='seco').length;
+  return `
+  <div class="bloco bloco-plano apar" style="display:flex;gap:14px;text-align:center">
+    ${[['Ideais',S.canteiros.filter(c=>estado(c)==='ideal').length,'st-ideal'],
+       ['Secos',secos,'st-seco'],
+       ['Regando',S.canteiros.filter(c=>c.valvula).length,'st-alag']].map(([r,v,cl])=>`
+      <div style="flex:1">
+        <b class="dado ${cl}" style="font-size:22px;font-weight:500">${v}</b>
+        <div class="rotulo" style="margin-top:3px">${r}</div>
+      </div>`).join('')}
+  </div>
+  <div class="secao-tit apar" style="animation-delay:60ms"><h2>Todas as zonas</h2><span class="rotulo">Umidade do solo</span></div>
+  ${S.canteiros.map((c,i)=>linhaCanteiro(c,80+i*45)).join('')}
+  <div class="bloco apar" style="animation-delay:340ms;margin-top:14px;display:flex;gap:12px;align-items:center">
+    <span style="color:var(--tinta-3);display:flex">${ic('sensor',22)}</span>
+    <div style="flex:1">
+      <h4 style="font-size:13.5px;font-weight:600">Adicionar canteiro</h4>
+      <p class="nota" style="font-size:11.5px">Pareie um sensor de umidade novo ao hub.</p>
+    </div>
+    <span style="color:var(--tinta-3);display:flex">${ic('frente',18)}</span>
+  </div>`;
+}
+
+function telaDetalhe(){
+  const c = S.canteiroAberto;
+  if(!c) return '';
+  const st = estado(c);
+  const litros = Math.round(c.vazao*c.dur);
+  return `
+  <div class="detalhe-topo apar">
+    <div>
+      <div class="dado st-${st}" style="font-size:42px;font-weight:500;letter-spacing:-.04em;line-height:1">${Math.round(c.umid)}<span style="font-size:22px">%</span></div>
+      <div class="rotulo" style="margin-top:4px">${nomeEstado[st]} · faixa ${c.min}–${c.max}%</div>
+      <div class="chips">
+        ${c.culturas.map(x=>'<span class="chip">'+x+'</span>').join('')}
+      </div>
+    </div>
+  </div>
+
+  <div class="bloco apar" style="animation-delay:60ms">
+    <div class="rotulo" style="margin-bottom:14px">Perfil do solo</div>
+    <div class="perfil">
+      ${perfilSolo(c)}
+      <div class="perfil-leg">
+        <div class="leg-linha"><span>Frente de molhamento</span><b>${Math.round(45*c.umid/100)} cm</b></div>
+        <div class="leg-linha"><span>Profundidade da raiz</span><b>${c.raiz} cm</b></div>
+        <div class="leg-linha"><span>Perda por hora</span><b>${(c.dreno*fatorSol[c.sol]).toFixed(1)} %</b></div>
+        <div class="leg-linha"><span>Exposição</span><b style="text-transform:capitalize">${c.sol}</b></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="secao-tit apar" style="animation-delay:100ms"><h2>Últimas 24 horas</h2><span class="rotulo">${c.sensor}</span></div>
+  <div class="bloco apar" style="animation-delay:120ms">
+    ${sparkline(c)}
+    <div style="display:flex;justify-content:space-between;margin-top:10px" class="rotulo">
+      <span>−24 h</span><span>−12 h</span><span>agora</span>
+    </div>
+  </div>
+
+  <div class="grade-2 apar" style="animation-delay:170ms;margin-top:14px">
+    <div class="metrica"><div class="rotulo">Última rega</div><b>${c.ultima}</b><em>${litros} L</em></div>
+    <div class="metrica"><div class="rotulo">Vazão</div><b>${c.vazao.toFixed(1)}</b><em>L/min · ${c.area} m²</em></div>
+  </div>
+
+  <div class="bloco apar" style="animation-delay:210ms;margin-top:14px">
+    <div class="linha-opcao" style="padding-top:0">
+      <span style="color:var(--tinta-2);display:flex">${ic('relogio',20)}</span>
+      <div class="txt"><h4>Duração do ciclo</h4><p>Volume por rega: ${litros} litros</p></div>
+      <div style="display:flex;align-items:center;gap:10px">
+        <button class="btn-icone" style="width:32px;height:32px" data-dur="-1">${ic('menos',16)}</button>
+        <b class="dado" style="width:34px;text-align:center">${c.dur}m</b>
+        <button class="btn-icone" style="width:32px;height:32px" data-dur="1">${ic('mais',16)}</button>
+      </div>
+    </div>
+    <div class="linha-opcao" style="padding-bottom:0">
+      <span style="color:var(--tinta-2);display:flex">${ic('raio',20)}</span>
+      <div class="txt"><h4>Rega automática</h4><p>Aciona sozinho abaixo de ${c.min}%</p></div>
+      <button class="interruptor ${S.auto?'on':''}" data-auto="1"><i></i></button>
+    </div>
+  </div>
+
+  <div style="margin-top:16px" class="apar">
+    <button class="btn ${c.valvula?'btn-linha':'btn-agua'}" data-rega="${c.id}">
+      ${c.valvula ? ic('pausa',18)+' Parar rega' : ic('gota',18)+' Regar agora'}
+    </button>
+  </div>`;
+}
+
+function telaRega(){
+  const regando = S.canteiros.filter(c=>c.valvula);
+  const litros = Math.round(S.litrosHoje);
+  const maxSem = Math.max(...S.semana, litros, 1);
+  const diasSem = ['S','T','Q','Q','S','S','D'];
+  const hojeIdx = 0;
+
+  return `
+  <div class="bloco apar" style="padding:0;border:0;box-shadow:none">
+    <div class="sim">
+      <div class="rotulo">Relógio da simulação</div>
+      <div class="sim-relogio">${hhmm(S.relogio)}</div>
+      <div class="sim-data">Segunda, 3 de agosto · ${Math.round(tempAgora())}° no canteiro</div>
+      <div class="sim-seg">
+        ${[[1,'1×'],[30,'30×'],[120,'120×']].map(([v,r])=>
+          `<button class="${S.minPorTique===v?'on':''}" data-vel="${v}">${r}</button>`).join('')}
+      </div>
+      ${S.chovendo>0
+        ? `<div class="chuva-flag">${ic('chuva',15)} Chovendo — ciclos suspensos por ${Math.round(S.chovendo)} min</div>`
+        : `<div class="chuva-flag">${ic('relogio',15)} Próxima chuva prevista em ${Math.round(S.chuvaEmMin/60)} h</div>`}
+    </div>
+  </div>
+
+  <div class="bloco apar" style="animation-delay:60ms;margin-top:14px">
+    <div class="linha-opcao" style="padding-top:0">
+      <span style="color:var(--folha-esc);display:flex">${ic('raio',20)}</span>
+      <div class="txt"><h4>Rega automática</h4><p>Aciona por umidade, dentro das janelas, e adia se houver chuva prevista.</p></div>
+      <button class="interruptor ${S.auto?'on':''}" data-auto="1"><i></i></button>
+    </div>
+    <div class="linha-opcao" style="padding-bottom:0">
+      <span style="color:var(--tinta-2);display:flex">${ic('calend',20)}</span>
+      <div class="txt"><h4>Janelas do dia</h4><p>05:30 – 09:00 e 17:30 – 20:00</p></div>
+      <span class="tag folha">${janelaRega()?'Aberta':'Fechada'}</span>
+    </div>
+  </div>
+
+  <div class="secao-tit apar" style="animation-delay:100ms">
+    <h2>Válvulas</h2><span class="rotulo">${regando.length} aberta${regando.length===1?'':'s'}</span>
+  </div>
+  <div class="bloco apar" style="animation-delay:120ms">
+    ${S.canteiros.map((c,i)=>{
+      const st = estado(c);
+      return `<div class="linha-opcao" ${i===0?'style="padding-top:0"':''}>
+        <span style="color:${c.valvula?'var(--agua)':'var(--tinta-3)'};display:flex">${ic('valvula',20)}</span>
+        <div class="txt">
+          <h4>${c.nome}</h4>
+          <p>${c.valvula
+              ? '<span style="color:var(--agua)">Aberta · '+Math.max(1,Math.round(c.restante))+' min · '+Math.round(c.vazao*(c.dur-c.restante))+' L</span>'
+              : Math.round(c.umid)+'% · limite '+c.min+'% · '+c.vazao.toFixed(1)+' L/min'}</p>
+        </div>
+        <button class="interruptor ${c.valvula?'on':''}" data-rega="${c.id}" style="background:${c.valvula?'var(--agua)':''}"><i></i></button>
+      </div>`;
+    }).join('')}
+  </div>
+
+  <div style="margin-top:14px" class="apar btn-par">
+    <button class="btn btn-agua" data-tudo="1">${ic('gota',18)} Regar tudo</button>
+    <button class="btn btn-linha" data-parar="1" ${regando.length?'':'disabled'}>${ic('pausa',18)} Parar tudo</button>
+  </div>
+
+  <div class="secao-tit apar" style="animation-delay:200ms"><h2>Consumo de água</h2><span class="rotulo">litros</span></div>
+  <div class="bloco apar" style="animation-delay:220ms">
+    <div style="display:flex;align-items:baseline;gap:8px">
+      <b class="dado" style="font-size:28px;font-weight:500;letter-spacing:-.03em">${litros}</b>
+      <span class="nota">L hoje · ${Math.round(S.semana.reduce((a,b)=>a+b,0)+litros)} L na semana</span>
+    </div>
+    <div class="barras">
+      ${diasSem.map((d,i)=>{
+        const v = i===hojeIdx ? litros : S.semana[i];
+        return `<div class="barra-col ${i===hojeIdx?'hoje':''}">
+          <i style="height:${Math.max(3,(v/maxSem)*100)}%"></i><span>${d}</span></div>`;
+      }).join('')}
+    </div>
+  </div>
+
+  <div class="secao-tit apar" style="animation-delay:280ms"><h2>Histórico</h2></div>
+  <div class="bloco apar" style="animation-delay:300ms">
+    ${S.eventos.slice(0,8).map(e=>`
+      <div class="evento">
+        <div class="evento-h dado">${e.h}</div>
+        <div class="evento-p ${e.tipo}"></div>
+        <div class="evento-t">${e.t}</div>
+      </div>`).join('')}
+  </div>`;
+}
+
+function telaClima(){
+  const d0 = S.clima.dias[0];
+  const mmSemana = S.clima.dias.reduce((a,d)=>a+d.mm,0);
+  const economia = Math.round(mmSemana*4.2*3);
+  const minT = Math.min(...S.clima.dias.map(d=>d.min));
+  const maxT = Math.max(...S.clima.dias.map(d=>d.max));
+
+  return `
+  <div class="bloco apar" style="background:linear-gradient(150deg,#2C4A5C 0%,#3C6E88 100%);border:0;color:#EAF1F4">
+    <div class="rotulo" style="color:rgba(234,241,244,.55)">Agora · ${S.clima.local}</div>
+    <div style="display:flex;align-items:center;gap:16px;margin-top:12px">
+      <div style="flex:1">
+        <div class="dado" style="font-size:52px;font-weight:500;letter-spacing:-.045em;line-height:1">${S.clima.temp}°</div>
+        <div style="font-size:13px;color:rgba(234,241,244,.75);margin-top:6px">${S.clima.cond}</div>
+      </div>
+      <span style="opacity:.85">${ic(S.chovendo>0?'chuva':d0.cond,64,1.2)}</span>
+    </div>
+    <div style="display:flex;gap:22px;margin-top:20px;padding-top:16px;border-top:1px solid rgba(234,241,244,.16)">
+      ${[['Umidade do ar',S.clima.umidadeAr+'%'],['Vento',S.clima.vento+' km/h'],['Índice UV',S.clima.uv]].map(([r,v])=>`
+        <div><div class="rotulo" style="color:rgba(234,241,244,.5)">${r}</div>
+        <b class="dado" style="font-size:15px;font-weight:500;display:block;margin-top:5px">${v}</b></div>`).join('')}
+    </div>
+  </div>
+
+  <div class="secao-tit apar" style="animation-delay:60ms"><h2>Sete dias</h2><span class="rotulo">${minT}° – ${maxT}°</span></div>
+  <div class="bloco apar" style="animation-delay:80ms">
+    <div class="dias">
+      ${S.clima.dias.map(d=>{
+        const esq = ((d.min-minT)/(maxT-minT))*100;
+        const larg = ((d.max-d.min)/(maxT-minT))*100;
+        return `<div class="dia">
+          <div class="dia-nome">${d.d}</div>
+          <div class="dia-ic">${ic(d.cond,19)}</div>
+          <div class="dia-chuva">${d.prob>=20?d.prob+'%':''}</div>
+          <div class="dia-faixa"><i style="left:${esq}%;width:${larg}%"></i></div>
+          <div class="dia-temp"><span>${d.min}°</span> <b>${d.max}°</b></div>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>
+
+  <div class="secao-tit apar" style="animation-delay:140ms"><h2>Impacto na rega</h2></div>
+  <div class="bloco apar" style="animation-delay:160ms">
+    <div class="grade-2" style="margin-bottom:14px">
+      <div class="metrica"><div class="rotulo">Chuva prevista</div><b>${mmSemana.toFixed(1)}</b><em>mm em 7 dias</em></div>
+      <div class="metrica"><div class="rotulo">Economia estimada</div><b>${economia}</b><em>litros poupados</em></div>
+    </div>
+    <div class="aviso">
+      ${ic('chuva',18)}
+      <p><b>Quarta terá 11,2 mm de chuva.</b> Os ciclos de terça à noite e quarta de manhã serão cancelados automaticamente — o solo deve subir sozinho para a faixa ideal.</p>
+    </div>
+  </div>
+
+  <div class="bloco apar" style="animation-delay:200ms">
+    <div class="linha-opcao" style="padding-top:0">
+      <span style="color:var(--tinta-2);display:flex">${ic('nuvem',20)}</span>
+      <div class="txt"><h4>Adiar rega por previsão</h4><p>Cancela ciclos quando há mais de 55% de chance de chuva nas 6 h seguintes.</p></div>
+      <button class="interruptor on"><i></i></button>
+    </div>
+    <div class="linha-opcao" style="padding-bottom:0">
+      <span style="color:var(--tinta-2);display:flex">${ic('termo',20)}</span>
+      <div class="txt"><h4>Compensar calor</h4><p>Aumenta a duração em 20% acima de 30 °C.</p></div>
+      <button class="interruptor on"><i></i></button>
+    </div>
+  </div>`;
+}
+
+function telaAjustes(){
+  return `
+  <div class="bloco apar" style="display:flex;gap:14px;align-items:center">
+    <div style="width:46px;height:46px;border-radius:14px;background:var(--papel-2);display:grid;place-items:center;color:var(--folha-esc)">${ic('planta',24)}</div>
+    <div style="flex:1">
+      <h4 style="font-size:15px;font-weight:600">Horta do quintal</h4>
+      <p class="nota" style="font-size:11.5px">5 canteiros · 14 m² · hub conectado</p>
+    </div>
+    <span class="tag folha">${ic('check',13)} Online</span>
+  </div>
+
+  <div class="secao-tit apar" style="animation-delay:60ms"><h2>Sensores</h2></div>
+  <div class="bloco apar" style="animation-delay:80ms">
+    ${S.canteiros.map((c,i)=>`
+      <div class="linha-opcao" ${i===0?'style="padding-top:0"':''}>
+        <span style="color:var(--tinta-3);display:flex">${ic('sensor',20)}</span>
+        <div class="txt"><h4>${c.sensor} — ${c.nome}</h4><p>Bateria ${92-i*9}% · leitura a cada 10 min</p></div>
+        <span class="rotulo" style="color:var(--folha-esc)">OK</span>
+      </div>`).join('')}
+  </div>
+
+  <div class="secao-tit apar" style="animation-delay:140ms"><h2>Preferências</h2></div>
+  <div class="bloco apar" style="animation-delay:160ms">
+    ${[
+      ['sino','Avisar quando secar','Notifica assim que um canteiro passa do limite.',true],
+      ['gota','Confirmar rega manual','Pede confirmação antes de abrir a válvula.',false],
+      ['historico','Guardar histórico','Mantém 90 dias de leituras no hub.',true]
+    ].map(([i,t,p,on],k)=>`
+      <div class="linha-opcao" ${k===0?'style="padding-top:0"':''}>
+        <span style="color:var(--tinta-2);display:flex">${ic(i,20)}</span>
+        <div class="txt"><h4>${t}</h4><p>${p}</p></div>
+        <button class="interruptor ${on?'on':''}" data-toggle="1"><i></i></button>
+      </div>`).join('')}
+  </div>
+
+  <div class="secao-tit apar" style="animation-delay:220ms"><h2>Sistema</h2></div>
+  <div class="bloco apar" style="animation-delay:240ms">
+    <div class="linha-opcao" style="padding-top:0">
+      <div class="txt"><h4>Reiniciar simulação</h4><p>Volta o relógio para 06:40 e restaura as leituras.</p></div>
+      <button class="btn btn-linha" style="width:auto;padding:9px 14px;font-size:12.5px" data-reset="1">Reiniciar</button>
+    </div>
+    <div class="linha-opcao" style="padding-bottom:0">
+      <div class="txt"><h4>Versão</h4><p>Orvalho 2.4 · firmware do hub 1.8.2</p></div>
+    </div>
+  </div>
+
+  <p class="nota apar" style="text-align:center;margin-top:22px;font-size:11px;color:var(--tinta-3)">
+    Feito para hortas pequenas.<br>Os dados desta demonstração são simulados.
+  </p>`;
+}
+
+/* ================================================================
+   RENDER
+   ================================================================ */
+const RENDER = {hoje:telaHoje, canteiros:telaCanteiros, rega:telaRega, clima:telaClima, ajustes:telaAjustes, aovivo:telaAoVivo, detalhe:telaDetalhe};
+let ultimoHTML = {};
+
+function desenha(){
+  // topo
+  const t = TITULOS[S.tela]();
+  const temAviso = S.canteiros.some(c=>estado(c)==='seco');
+  document.getElementById('topo').innerHTML =
+    (S.tela==='detalhe'
+      ? '<button class="btn-icone" id="btnVoltar">'+ic('voltar',20)+'</button>'
+      : '') +
+    '<div class="topo-tit"><span class="topo-eyebrow">'+t.eyebrow+'</span><span class="topo-h">'+t.h+'</span></div>'+
+    '<div class="topo-acoes">'+
+      (S.tela==='hoje' ? '<button class="btn-icone '+(temAviso?'tem-aviso':'')+'">'+ic('sino',19)+'</button>' : '')+
+      (S.tela==='hoje' ? '<button class="btn-icone" data-vai="ajustes">'+ic('ajustes',19)+'</button>' : '')+
+    '</div>';
+
+  const alvo = document.querySelector('.tela[data-tela="'+S.tela+'"]');
+
+  // a cena animada e montada uma unica vez: re-render mataria a animacao
+  if(S.tela==='aovivo'){
+    if(!AV.montado){ alvo.innerHTML = telaAoVivo(); AV.montado = true; montaCena(); AV.assinatura = null; }
+    pinta(); return;
+  }
+
+  const html = RENDER[S.tela]();
+  if(ultimoHTML[S.tela] !== html){
+    const remontagem = ultimoHTML[S.tela] !== undefined;
+    const sc = alvo.scrollTop;
+    if(remontagem) alvo.classList.add('montada');   // sem re-animar a cada segundo
+    alvo.innerHTML = html;
+    if(remontagem) alvo.scrollTop = sc;
+    ultimoHTML[S.tela] = html;
+  }
+}
+
+/* --------- eventos delegados --------- */
+document.getElementById('app').addEventListener('click', e=>{
+  const alvo = e.target.closest('[data-abre],[data-vai],[data-rega],[data-vel],[data-auto],[data-tudo],[data-parar],[data-dur],[data-reset],[data-toggle],[data-avdur],#avBotao,#btnVoltar');
+  if(!alvo) return;
+
+  if(alvo.id==='avBotao'){ comandaRega(!AV.ativo); pinta(); return; }
+  if(alvo.dataset.avdur){ if(!AV.ativo){ AV.duracao = +alvo.dataset.avdur; pinta(); } return; }
+
+  if(alvo.id==='btnVoltar'){ vaiPara(S.origem || 'canteiros'); return; }
+  if(alvo.dataset.abre){ delete ultimoHTML['detalhe']; abreCanteiro(S.canteiros.find(c=>c.id===alvo.dataset.abre)); return; }
+  if(alvo.dataset.vai){ vaiPara(alvo.dataset.vai); return; }
+  if(alvo.dataset.rega){
+    const c = S.canteiros.find(x=>x.id===alvo.dataset.rega);
+    c.valvula ? fecharValvula(c) : abrirValvula(c);
+    ultimoHTML={}; desenha(); return;
+  }
+  if(alvo.dataset.vel){ S.minPorTique = +alvo.dataset.vel; ultimoHTML={}; desenha(); return; }
+  if(alvo.dataset.auto){
+    S.auto = !S.auto;
+    torrar(S.auto?'Rega automática ligada.':'Rega automática desligada.', S.auto?'raio':'pausa');
+    ultimoHTML={}; desenha(); return;
+  }
+  if(alvo.dataset.tudo){
+    S.canteiros.filter(c=>!c.valvula).forEach(c=>abrirValvula(c));
+    torrar('Todas as válvulas abertas.','gota'); ultimoHTML={}; desenha(); return;
+  }
+  if(alvo.dataset.parar){
+    S.canteiros.filter(c=>c.valvula).forEach(c=>fecharValvula(c));
+    torrar('Rega interrompida.','pausa'); ultimoHTML={}; desenha(); return;
+  }
+  if(alvo.dataset.dur){
+    const c = S.canteiroAberto;
+    c.dur = Math.max(2, Math.min(20, c.dur + (+alvo.dataset.dur)));
+    ultimoHTML={}; desenha(); return;
+  }
+  if(alvo.dataset.toggle){ alvo.classList.toggle('on'); return; }
+  if(alvo.dataset.reset){ location.reload(); return; }
+});
+
+
+/* ================================================================
+   AO VIVO — cena animada + sincronia entre dispositivos
+   Estado compartilhado em /orvalho/rega do Realtime Database.
+   O tempo vem do servidor, entao celular e PC animam o mesmo quadro.
+   ================================================================ */
+const CFG_FB = {
+  apiKey: "AIzaSyAvHUzX4_ZdUitEGlSFLamG0zyzuFtVe0I",
+  authDomain: "futcisquiros.firebaseapp.com",
+  databaseURL: "https://futcisquiros-default-rtdb.firebaseio.com",
+  projectId: "futcisquiros",
+  storageBucket: "futcisquiros.firebasestorage.app",
+  messagingSenderId: "204753243184",
+  appId: "1:204753243184:web:27916ac7e42e8bfdef71f5"
+};
+
+const FB = {ok:false, online:false, ref:null, offset:0, dispositivos:1};
+
+const AV = {
+  montado:false, ativo:false, inicio:0, duracao:30,
+  origem:null, origemTipo:null,
+  id: Math.random().toString(36).slice(2,9),
+  tipo: /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent) ? 'celular' : 'computador',
+  gotas:[], molhado:new Array(20).fill(0), litros:0, ultimoQuadro:0, acumulador:0
+};
+
+const agoraServidor = () => Date.now() + FB.offset;
+
+function iniciaFirebase(){
+  if(typeof firebase === 'undefined'){ console.warn('SDK do Firebase indisponivel — modo local'); return; }
+  try{
+    firebase.initializeApp(CFG_FB);
+    const db = firebase.database();
+    FB.ok = true;
+    FB.ref = db.ref('orvalho/rega');
+
+    db.ref('.info/serverTimeOffset').on('value', s => { FB.offset = s.val() || 0; });
+
+    const presenca = db.ref('orvalho/presenca');
+    const meu = presenca.child(AV.id);
+    db.ref('.info/connected').on('value', s => {
+      FB.online = !!s.val();
+      if(FB.online){
+        meu.onDisconnect().remove();
+        meu.set({tipo: AV.tipo, em: firebase.database.ServerValue.TIMESTAMP});
+      }
+      if(S.tela==='aovivo') desenha();
+    });
+    presenca.on('value', s => {
+      FB.dispositivos = s.numChildren() || 1;
+      if(S.tela==='aovivo') desenha();
+    });
+
+    FB.ref.on('value', s => aplicaRega(s.val()));
+  }catch(e){
+    FB.ok = false;
+    console.warn('Firebase falhou, seguindo em modo local:', e.message);
+  }
+}
+
+/* recebe o estado (do servidor ou local) e liga/desliga a cena */
+function aplicaRega(v){
+  if(!v || !v.ativo){
+    if(AV.ativo){ AV.ativo = false; registra('Rega ao vivo encerrada — '+Math.round(AV.litros)+' L','agua'); }
+    AV.ativo = false; AV.origem = null; AV.origemTipo = null;
+  }else{
+    const jaEstava = AV.ativo;
+    AV.ativo = true;
+    AV.inicio = v.inicio || agoraServidor();
+    AV.duracao = (v.duracao || 30000)/1000;
+    AV.origem = v.origem || null;
+    AV.origemTipo = v.tipo || null;
+    if(!jaEstava){
+      AV.litros = 0; AV.molhado.fill(0);
+      registra('Rega ao vivo iniciada pelo <b>'+(AV.origemTipo||'dispositivo')+'</b>','agua');
+      if(AV.origem !== AV.id) torrar('Rega acionada pelo '+(AV.origemTipo||'outro dispositivo')+'.','aovivo');
+    }
+  }
+  if(S.tela==='aovivo') pinta();
+}
+
+function comandaRega(ligar){
+  if(ligar){
+    const carga = {
+      ativo:true,
+      inicio: FB.ok && FB.online ? firebase.database.ServerValue.TIMESTAMP : agoraServidor(),
+      duracao: AV.duracao*1000,
+      origem: AV.id,
+      tipo: AV.tipo
+    };
+    if(FB.ok && FB.online){
+      FB.ref.onDisconnect().update({ativo:false});
+      FB.ref.set(carga);
+      torrar('Regando. Quem estiver com a tela aberta vê agora.','aovivo');
+    }else{
+      aplicaRega({...carga, inicio: agoraServidor()});
+      torrar('Regando neste dispositivo (sem sincronia).','gota');
+    }
+  }else{
+    if(FB.ok && FB.online) FB.ref.update({ativo:false, fim: firebase.database.ServerValue.TIMESTAMP});
+    else aplicaRega(null);
+  }
+}
+
+/* ---------------- tela ---------------- */
+function telaAoVivo(){
+  return `
+  <div class="bloco apar">
+    <div class="rotulo">Comando</div>
+    <p class="nota" style="margin:7px 0 14px">Abra este mesmo endereço no computador e no celular. O botão vale para os dois: o aspersor gira no mesmo instante nas duas telas.</p>
+    <div class="segmentado" id="avDur">
+      ${[10,30,60].map(v=>`<button data-avdur="${v}" class="${v===30?'on':''}">${v}s</button>`).join('')}
+    </div>
+    <button class="btn btn-agua" id="avBotao" style="margin-top:12px;padding:17px 20px;font-size:15px">
+      ${ic('gota',19)} Regar
+    </button>
+    <div class="av-progresso"><i id="avBarra"></i></div>
+    <div class="av-tempo">
+      <span id="avOrigem">Aspersor em repouso</span>
+      <span id="avTempo">0,0 s</span>
+    </div>
+  </div>
+
+  <div class="secao-tit apar" style="animation-delay:60ms"><h2>Canteiro central</h2><span class="rotulo">aspersor A-01</span></div>
+  <div class="cena-caixa apar" style="animation-delay:80ms" id="avCaixa">
+    <div class="cena-selo" id="avSelo"><i></i><span>em repouso</span></div>
+    <svg id="avCena" viewBox="0 0 340 214" xmlns="http://www.w3.org/2000/svg">
+      <defs>
+        <linearGradient id="avSolo" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#8A7359"/><stop offset="100%" stop-color="#5D4A38"/>
+        </linearGradient>
+        <linearGradient id="avJato" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0%" stop-color="#5A90AC" stop-opacity=".38"/>
+          <stop offset="55%" stop-color="#8FB9CE" stop-opacity=".16"/>
+          <stop offset="100%" stop-color="#8FB9CE" stop-opacity="0"/>
+        </linearGradient>
+        <linearGradient id="avMorro" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stop-color="#B9CDA6"/><stop offset="100%" stop-color="#9FB98C"/>
+        </linearGradient>
+      </defs>
+
+      <path d="M0 150 C60 138 120 146 190 140 C250 135 300 143 340 138 L340 150 Z" fill="url(#avMorro)"/>
+      <rect x="0" y="148" width="340" height="66" fill="url(#avSolo)"/>
+      <g id="avMolhado"></g>
+      <g id="avCanteiros"></g>
+      <g id="avPlantas"></g>
+
+      <g id="avAspersor">
+        <rect x="49" y="120" width="6" height="88" rx="3" fill="#4A5750"/>
+        <rect x="42" y="204" width="20" height="6" rx="3" fill="#3B463F"/>
+        <g id="avBocal" transform="rotate(-42 52 116)">
+          <path id="avJatoCone" d="M58 116 L232 92 L236 122 Z" fill="url(#avJato)" opacity="0"/>
+          <rect x="52" y="112" width="14" height="8" rx="4" fill="#5F6D65"/>
+        </g>
+        <circle cx="52" cy="116" r="7.5" fill="#4A5750"/>
+        <circle cx="52" cy="116" r="3" fill="#8FA398"/>
+      </g>
+
+      <g id="avGotas"></g>
+    </svg>
+  </div>
+
+  <div class="grade-2 apar" style="animation-delay:120ms;margin-top:14px">
+    <div class="metrica"><div class="rotulo">Água aplicada</div><b id="avLitros">0</b><em>litros neste ciclo</em></div>
+    <div class="metrica"><div class="rotulo">Umidade média</div><b id="avUmid">—</b><em>dos 5 canteiros</em></div>
+  </div>
+
+  <div class="bloco apar" style="animation-delay:160ms;margin-top:14px">
+    <div class="linha-opcao" style="padding-top:0">
+      <span style="color:var(--tinta-2);display:flex">${ic('aovivo',20)}</span>
+      <div class="txt"><h4>Sincronia</h4><p id="avSync">Verificando conexão…</p></div>
+    </div>
+    <div class="linha-opcao" style="padding-bottom:0">
+      <span style="color:var(--tinta-2);display:flex">${ic('aspersor',20)}</span>
+      <div class="txt"><h4>Este dispositivo</h4><p>${AV.tipo} · id ${AV.id}</p></div>
+    </div>
+  </div>`;
+}
+
+/* ---------------- montagem da cena ---------------- */
+const CENA = {x0:96, x1:332, chao:182, bocalX:58, bocalY:116};
+
+function montaCena(){
+  const canteiros = document.getElementById('avCanteiros');
+  const plantas = document.getElementById('avPlantas');
+  const gotas = document.getElementById('avGotas');
+  const molhado = document.getElementById('avMolhado');
+
+  // tres leiras em profundidade
+  const leiras = [
+    {y:152, x:104, w:224, h:13, e:.72},
+    {y:170, x:96,  w:236, h:15, e:.88},
+    {y:192, x:88,  w:248, h:17, e:1.05}
+  ];
+  leiras.forEach(l=>{
+    canteiros.insertAdjacentHTML('beforeend',
+      `<rect x="${l.x}" y="${l.y}" width="${l.w}" height="${l.h}" rx="${l.h/2}" fill="#6B573F"/>`+
+      `<rect x="${l.x}" y="${l.y}" width="${l.w}" height="${l.h*0.45}" rx="${l.h/2}" fill="#7E6A50" opacity=".7"/>`);
+    const n = Math.round(l.w/34);
+    for(let i=0;i<n;i++){
+      const px = l.x + 16 + i*((l.w-32)/(n-1));
+      plantas.insertAdjacentHTML('beforeend', desenhaPlanta(px, l.y+2, l.e, (i+leiras.indexOf(l))%3));
+    }
+  });
+
+  // colunas de solo molhado
+  const larg = (CENA.x1-CENA.x0)/AV.molhado.length;
+  AV.molhado.forEach((_,i)=>{
+    molhado.insertAdjacentHTML('beforeend',
+      `<rect x="${CENA.x0+i*larg}" y="148" width="${larg+0.6}" height="66" fill="#3E5C6E" opacity="0"/>`);
+  });
+
+  // poco de gotas reaproveitadas
+  AV.gotas.length = 0;
+  for(let i=0;i<52;i++){
+    gotas.insertAdjacentHTML('beforeend','<circle cx="0" cy="0" r="0" fill="#5A90AC" opacity="0"/>');
+    AV.gotas.push({viva:false, x:0, y:0, vx:0, vy:0, r:1.6});
+  }
+}
+
+function desenhaPlanta(x, y, e, tipo){
+  const alt = 15*e, larg = 9*e;
+  let corpo;
+  if(tipo===0){       // folhosa
+    corpo = `<path d="M0 0 L0 ${-alt}" stroke="#2F7A28" stroke-width="${1.6*e}" stroke-linecap="round"/>
+      <path d="M0 ${-alt*.45} c${-larg} ${-1*e} ${-larg*1.3} ${-5*e} ${-larg*1.3} ${-9*e} ${larg*.7} 0 ${larg*1.2} ${4*e} ${larg*1.3} ${9*e}Z" fill="#4FA22E"/>
+      <path d="M0 ${-alt*.72} c${larg} ${-1*e} ${larg*1.3} ${-5*e} ${larg*1.3} ${-9*e} ${-larg*.7} 0 ${-larg*1.2} ${4*e} ${-larg*1.3} ${9*e}Z" fill="#7CC24A"/>`;
+  }else if(tipo===1){ // tufo de temperos
+    corpo = `<path d="M0 0 L${-3*e} ${-alt*.9} M0 0 L0 ${-alt} M0 0 L${3.4*e} ${-alt*.85}" stroke="#3C8C24" stroke-width="${1.4*e}" stroke-linecap="round"/>
+      <circle cx="${-3*e}" cy="${-alt*.92}" r="${2.4*e}" fill="#7CC24A"/>
+      <circle cx="0" cy="${-alt*1.04}" r="${2.6*e}" fill="#4FA22E"/>
+      <circle cx="${3.4*e}" cy="${-alt*.88}" r="${2.2*e}" fill="#5FAF35"/>`;
+  }else{              // com fruto
+    corpo = `<path d="M0 0 L0 ${-alt*1.15}" stroke="#2F7A28" stroke-width="${1.7*e}" stroke-linecap="round"/>
+      <path d="M0 ${-alt*.6} c${-larg*1.1} ${-2*e} ${-larg*1.4} ${-6*e} ${-larg*1.2} ${-9*e} ${larg*.8} ${1*e} ${larg*1.2} ${5*e} ${larg*1.2} ${9*e}Z" fill="#4FA22E"/>
+      <circle cx="${larg*.55}" cy="${-alt*.72}" r="${2.6*e}" fill="#BE5B3D"/>`;
+  }
+  return `<g class="planta-g" transform="translate(${x},${y})">${corpo}</g>`;
+}
+
+/* ---------------- laco de animacao ---------------- */
+function laco(ts){
+  requestAnimationFrame(laco);
+  const dt = Math.min(.06, (ts - (AV.ultimoQuadro||ts))/1000);
+  AV.ultimoQuadro = ts;
+
+  let t = 0;
+  if(AV.ativo){
+    t = (agoraServidor() - AV.inicio)/1000;
+    if(t >= AV.duracao){
+      // so quem comandou escreve o encerramento
+      if(AV.origem === AV.id || !FB.ok || !FB.online) comandaRega(false);
+      else AV.ativo = false;
+    }else{
+      AV.litros += 0.92*dt;
+      // a rega ao vivo realimenta o modelo do resto do app
+      S.canteiros.forEach(c => { c.umid = Math.min(96, c.umid + 0.42*dt); });
+    }
+  }
+
+  if(S.tela!=='aovivo' || !AV.montado) return;
+
+  const bocal = document.getElementById('avBocal');
+  const cone  = document.getElementById('avJatoCone');
+  if(!bocal) return;
+
+  // varredura deterministica: mesmo t = mesmo angulo em qualquer tela
+  const fase = t/5;
+  const ang = AV.ativo ? -44 + 24*Math.sin(2*Math.PI*fase) : -42;
+  const vel = 208 + 52*Math.sin(2*Math.PI*fase + 1.1);
+  bocal.setAttribute('transform', `rotate(${ang.toFixed(2)} 52 116)`);
+  cone.setAttribute('opacity', AV.ativo ? '1' : '0');
+
+  // gotas
+  if(AV.ativo){
+    AV.acumulador += dt*30;
+    while(AV.acumulador >= 1){
+      AV.acumulador -= 1;
+      const g = AV.gotas.find(x=>!x.viva);
+      if(g){
+        const a = (ang + (Math.random()*9-4.5)) * Math.PI/180;
+        const v = vel * (0.86 + Math.random()*0.28);
+        g.viva=true; g.x=CENA.bocalX; g.y=CENA.bocalY;
+        g.vx=Math.cos(a)*v; g.vy=Math.sin(a)*v;
+        g.r = 1.1 + Math.random()*1.4;
+      }
+    }
+  }
+  const nos = document.getElementById('avGotas').childNodes;
+  AV.gotas.forEach((g,i)=>{
+    const n = nos[i]; if(!n) return;
+    if(!g.viva){ if(n.getAttribute('r')!=='0'){ n.setAttribute('r','0'); n.setAttribute('opacity','0'); } return; }
+    g.vy += 300*dt; g.x += g.vx*dt; g.y += g.vy*dt;
+    if(g.y >= CENA.chao + (g.x-CENA.x0)*0.035 || g.x > 344){ g.viva=false; n.setAttribute('r','0'); n.setAttribute('opacity','0'); return; }
+    n.setAttribute('cx', g.x.toFixed(1));
+    n.setAttribute('cy', g.y.toFixed(1));
+    n.setAttribute('r', g.r.toFixed(2));
+    n.setAttribute('opacity', '.72');
+  });
+
+  // solo molhando: funcao pura do tempo -> identico nos dois aparelhos
+  const nosM = document.getElementById('avMolhado').childNodes;
+  const larg = (CENA.x1-CENA.x0)/AV.molhado.length;
+  for(let i=0;i<AV.molhado.length;i++){
+    const cx = CENA.x0 + i*larg + larg/2;
+    const atraso = Math.abs(cx-218)/340*3.4;
+    const alvo = AV.ativo ? Math.max(0, Math.min(1, (t-atraso)/(AV.duracao*0.55))) : AV.molhado[i]-0.09*dt;
+    AV.molhado[i] = Math.max(0, AV.ativo ? Math.max(AV.molhado[i], alvo) : alvo);
+    if(nosM[i]) nosM[i].setAttribute('opacity', (AV.molhado[i]*0.5).toFixed(3));
+  }
+
+  pinta(t);
+}
+
+/* ---------------- atualizacoes de texto ---------------- */
+function pinta(t){
+  if(!AV.montado || S.tela!=='aovivo') return;
+  if(t===undefined) t = AV.ativo ? (agoraServidor()-AV.inicio)/1000 : 0;
+  const rest = Math.max(0, AV.duracao - t);
+
+  const bt = document.getElementById('avBotao'); if(!bt) return;
+
+  // trecho caro: so refaz quando o estado realmente muda
+  const assinatura = [AV.ativo, AV.origem, AV.duracao, FB.ok, FB.online, FB.dispositivos].join('|');
+  if(assinatura !== AV.assinatura){
+    AV.assinatura = assinatura;
+    bt.className = 'btn ' + (AV.ativo ? 'btn-linha' : 'btn-agua');
+    bt.innerHTML = AV.ativo ? ic('pausa',19)+' Parar rega' : ic('gota',19)+' Regar';
+    document.getElementById('avOrigem').textContent = AV.ativo
+      ? (AV.origem===AV.id ? 'Comandado por este dispositivo' : 'Comandado pelo '+(AV.origemTipo||'outro dispositivo'))
+      : 'Aspersor em repouso';
+    const selo = document.getElementById('avSelo');
+    selo.classList.toggle('ligado', AV.ativo);
+    selo.querySelector('span').textContent = AV.ativo ? 'regando ao vivo' : 'em repouso';
+    document.getElementById('avSync').textContent = !FB.ok ? 'O SDK do Firebase não carregou. A cena roda só aqui.'
+      : !FB.online ? 'Reconectando ao banco…'
+      : FB.dispositivos>1 ? FB.dispositivos+' telas abertas, sincronizadas pelo relógio do servidor.'
+      : 'Conectado. Abra a mesma página em outro aparelho para ver a sincronia.';
+    document.querySelectorAll('#avDur button').forEach(b=>
+      b.classList.toggle('on', +b.dataset.avdur === AV.duracao));
+    const cx = document.getElementById('avCaixa');
+    if(cx) cx.classList.toggle('regando', AV.ativo);
+  }
+
+  document.getElementById('avBarra').style.width = (AV.ativo ? Math.min(100,(t/AV.duracao)*100) : 0)+'%';
+  document.getElementById('avTempo').textContent = AV.ativo ? rest.toFixed(1).replace('.',',')+' s' : AV.duracao+' s';
+  document.getElementById('avLitros').textContent = AV.litros.toFixed(1).replace('.',',');
+  document.getElementById('avUmid').textContent = mediaUmid()+'%';
+
+}
+
+/* --------- arranque --------- */
+iniciaFirebase();
+requestAnimationFrame(laco);
+montaNav();
+desenha();
+document.querySelector('.tela[data-tela="hoje"]').classList.add('ativa');
+setInterval(tique, 1000);
+setTimeout(()=>{
+  const sp = document.getElementById('splash');
+  sp.classList.add('sai');
+  setTimeout(()=>sp.remove(), 800);
+}, 2400);
+</script>
+</body>
+</html>
